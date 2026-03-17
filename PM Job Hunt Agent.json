@@ -1,0 +1,334 @@
+{
+  "name": "PM Job Hunt Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "e82c3790ea1db94c1bff08809e5a9caabc60b9c5"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"q\": \"site:careers.* OR site:jobs.* product manager entry level india\",\n  \"gl\": \"in\",\n  \"hl\": \"en\",\n  \"num\": 10\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        0
+      ],
+      "id": "a6aeb1c8-f7cc-4783-ac90-3982f05c642a",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $input.first().json.organic.slice(0,10);\n\nreturn results.map(item => {\n  let domain = item.link || '';\n  domain = domain.replace('https://', '').replace('http://', '');\n  domain = domain.split('/')[0];\n  domain = domain.replace('www.', '');\n  \n  // Strip subdomains like jobs. careers. etc.\n  const parts = domain.split('.');\n  if (parts.length > 2) {\n    domain = parts.slice(-2).join('.');\n  }\n\n  return {\n    json: {\n      date: new Date().toLocaleDateString(),\n      job_title: item.title || '',\n      company: domain,\n      job_url: item.link || '',\n      snippet: item.snippet || ''\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "54cd83a2-6980-459f-a645-711257afb810",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "url": "https://api.hunter.io/v2/domain-search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "domain",
+              "value": "={{ $json.company }}"
+            },
+            {
+              "name": "api_key",
+              "value": "0ada9013ca2a08562775aea138d7d801d16bf65c"
+            },
+            {
+              "name": "limit",
+              "value": "3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        672,
+        0
+      ],
+      "id": "1d572edb-943a-4e32-93a2-854063cf1b4f",
+      "name": "HTTP Request1",
+      "executeOnce": false,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            },
+            {
+              "triggerAtHour": 18
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "f06a9089-bc99-49cf-b6eb-4f8b0335f8b9",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Write a short, personalized cold email to the HR/recruiter at the company \"{{ $('HTTP Request1').item.json.data.domain }}\" for the role of \"{{ $('Code in JavaScript').item.json.job_title }}\".\n\nAbout the applicant:\n- Name: Kritika Mittal\n- Background: Aspiring Product Manager with experience in user research, product discovery and MVP prototyping. Skilled at translating user insights into product requirements, experiments, and feature roadmaps using structural frameworks such as JBTD and Hypothesis testing. Interested in building scalable digital products through data-driven decision making and iterative product development.\n\nJob context: {{ $('Code in JavaScript').item.json.snippet }}\n\nRequirements:\n- Keep it under 150 words\n- Sound human, warm and confident\n- Mention the company name specifically\n- Start with \"Hi\" not \"Dear\"\n- End with a clear call to action asking for a 15 min call\n- No subject line, just the email body"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        912,
+        0
+      ],
+      "id": "6c485554-68d7-4855-a3f0-0d8c4dd12b23",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "zIy2rnXIajrUrLnw",
+          "name": "n8n free OpenAI API credits"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ZGGgnM7k3VT3VKqBc4QddKUnswh4EjjXAUf6d9Qbwyo",
+          "mode": "list",
+          "cachedResultName": "PM Job Tracker ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZGGgnM7k3VT3VKqBc4QddKUnswh4EjjXAUf6d9Qbwyo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZGGgnM7k3VT3VKqBc4QddKUnswh4EjjXAUf6d9Qbwyo/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date ": "={{ $('Code in JavaScript').item.json.date }}",
+            "Job Title": "={{ $('Code in JavaScript').item.json.job_title }}",
+            "Company": "={{ $('HTTP Request1').item.json.data.domain }}",
+            "Job URL": "={{ $('Code in JavaScript').item.json.job_url }}",
+            "HR Email": "={{ $('HTTP Request1').item.json.data.emails[0].value }}",
+            "Email Draft": "={{ $json.output[0].content[0].text }}",
+            "Status ": "To Review"
+          },
+          "matchingColumns": [
+            "output"
+          ],
+          "schema": [
+            {
+              "id": "Date ",
+              "displayName": "Date ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Job Title",
+              "displayName": "Job Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Job URL",
+              "displayName": "Job URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "HR Email",
+              "displayName": "HR Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email Draft",
+              "displayName": "Email Draft",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status ",
+              "displayName": "Status ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1264,
+        0
+      ],
+      "id": "8bacd845-34e2-452e-baad-86bbfe994275",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KHUDSpbmaspqsdSz",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "519e6e72-ebed-40bb-a5bc-bc0ceef2d163",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fdb0465b1ae780aeb83984d1371f009213947be34acc0a50fd89d1c9749ed412"
+  },
+  "id": "0Cwk56uysG1m82QE",
+  "tags": []
+}
